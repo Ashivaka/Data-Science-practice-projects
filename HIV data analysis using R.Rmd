@@ -1,0 +1,210 @@
+---
+title: "myhivdata1 analysis by Michael Ashivaka"
+output:
+  html_notebook:
+    theme: darkly
+---
+# Steps breakdown
+
+- Load appropriate R packages
+- Read the myhivdata1 in the editor
+- Find how many variables the dataset has
+- Find how many students were male and how many were females
+- Determine percentage of students taking ubdergraduate degrees
+- Determine percentage of undergraduate students who were females
+- Determine  where male students mostly reside while in session
+- Determine percentage of students that stayed with both parents while not in session
+- Determine if there is an association between gender and where they reside while out of session
+- Find how many siblings on average did self-sponsored students have
+- Determine what was the source of the money students spent while in session and Provide a table of summary for the average amount of each source
+- Find how many students have ever taken drugs
+- Determine if students gender is associated with drugs/substance abuse
+- Determine how many respondents mentioned peer pressure among the reasons why drug/substance abuse was increasing
+
+## Load appropriate R packages
+
+```{r}
+library(tidyverse)
+```
+
+## Read the myhivdata1 in the editor
+
+```{r}
+mydata<-read.csv("myhivdata1 (2).csv")
+
+head(mydata)
+```
+
+## Find how many variables the dataset has
+
+```{r}
+dim(mydata)
+```
+The data has 166 variables and 551 cases
+
+## How many of the students were Males and how many were females? 
+
+```{r}
+head(colnames(mydata), n=30)
+```
+
+```{r}
+#table(mydata$What.is.your.Gender.)
+mydata %>% 
+  count(What.is.your.Gender.)
+```
+The dataset had 237 females and 102 males
+
+## What percentage of the students were taking Undergraduate degrees? 
+
+```{r}
+mydata %>% 
+  count(Which.program.are.you.pursuing.) %>% 
+  mutate(percentage = round(n/sum(n)*100))
+```
+
+42% of the students were taking undergraduate degrees
+
+## What percentage of the Undergraduate students were females? 
+
+```{r}
+mydata %>% 
+  filter(Which.program.are.you.pursuing. == "Undergraduate") %>% 
+  count(What.is.your.Gender.) %>% 
+  mutate(percentage = round(n/sum(n)*100))
+```
+46% of the undergraduate students were females
+
+## Where do the male students mostly reside while in session?
+
+```{r}
+mydata %>% 
+  filter(What.is.your.Gender. == "Male") %>% 
+  count(Where.do.your.reside.while.in.session., sort = TRUE)
+```
+Male students mostly resided in Gataka (outside CUK) which is a total of 105 males
+
+## While not in session, what percentage of the students stayed with both parents?
+
+```{r}
+unique(mydata$Who.do.you.usually.live.with.while.not..in.session...Mother.)
+```
+
+
+```{r}
+mydata %>% 
+  mutate(both_parents = if_else(Who.do.you.usually.live.with.while.not..in.session...Mother.== "Yes" & Who.do.you.usually.live.with.while.not..in.session...Father.== "Yes", TRUE, FALSE
+    
+  )) %>% 
+  summarise(percentage= round(mean(both_parents,na.rm = TRUE)*100))
+```
+27% of students stayed with parents while not in session
+
+## Is there an association between gender and where they reside while out of session?
+
+### perform a a Chi_square test for association
+
+```{r}
+unique(mydata$Where.do.you.reside.while.out.of.session.)
+```
+
+
+```{r}
+gender_residence<- mydata %>% 
+                    filter(!is.na(What.is.your.Gender.), !is.na(Where.do.you.reside.while.out.of.session.)) %>% 
+                    count(What.is.your.Gender.,Where.do.you.reside.while.out.of.session.) %>% 
+                    filter(Where.do.you.reside.while.out.of.session. !="") %>% 
+                    pivot_wider(names_from = Where.do.you.reside.while.out.of.session., values_from = n, values_fill = 0)
+
+print(gender_residence)
+  
+```
+
+
+```{r}
+chisq.test(as.matrix((select(gender_residence, -What.is.your.Gender.))))
+```
+There is a significant association between gender and where they reside since the p-value is less than 0.05
+
+## How many siblings on average did self-sponsored students have? 
+
+```{r}
+#colnames(mydata)
+```
+
+```{r}
+typeof(mydata$How.many.siblings.do.you.have...include.yourself...Brothers.)
+```
+
+```{r}
+unique(mydata$Who.sponsors.your.studies.)
+```
+
+
+```{r}
+mydata %>% 
+  mutate(total_siblings = as.numeric(How.many.siblings.do.you.have...include.yourself...Brothers.)+
+           as.numeric(How.many.siblings.do.you.have...include.yourself...Sisters.)) %>% 
+  filter(Who.sponsors.your.studies. == "Self sponsored") %>% 
+  summarise(avg_siblings = round(mean(total_siblings, na.rm=TRUE)))
+```
+Self sponsored students had an average of 4 siblings
+
+## What was the source of the money that student spent while in session? Provide a table summary for the average amount from each source
+
+```{r}
+typeof(mydata$What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...Salary.and.wages.from.a.job..including.self.employment..)
+```
+
+```{r}
+unique(mydata$What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...Salary.and.wages.from.a.job..including.self.employment..)
+```
+
+
+```{r}
+mydata %>% 
+  summarise(
+    salary_and_wages= sum(What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...Salary.and.wages.from.a.job..including.self.employment..== "Yes", na.rm = TRUE),
+    charities= sum(What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...Charities.== "Yes", na.rm = TRUE),
+    parents_guardians= sum(What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...Parents...Guardians.== "Yes", na.rm = TRUE),
+    friends= sum(What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...Friends.== "Yes", na.rm = TRUE),
+    helb= sum(What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...HELB.== "Yes", na.rm = TRUE),
+    bursary= sum(What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...Bursary.== "Yes", na.rm = TRUE),
+    other= sum(What.is.the.source.of.the.money.that.you.normally.spend.while.in.session...Other.== "Yes", na.rm = TRUE)
+    
+  ) %>% 
+  pivot_longer(everything(), names_to = "Source of money", values_to = "count") %>% 
+  mutate(percentage = round(count/sum(count)*100,1))
+```
+
+## How many students have ever taken drug(s)?
+
+```{r}
+mydata %>% 
+  count(Have.you.ever.used.any.of.the.following.drugs.substances.before...Alcohol..Cannabis..Cigarette..Cocaine..Hallucinogens..Heroin..Inhalants..Miraa.Khat..Tranquilizers.)
+```
+46 of the students declared to have ever taken a drug
+
+## Is students gender associated with drug/substance abuse?
+
+```{r}
+gender_drugAbuse<- mydata %>% 
+  filter(!is.na(What.is.your.Gender.), !is.na(Have.you.ever.used.any.of.the.following.drugs.substances.before...Alcohol..Cannabis..Cigarette..Cocaine..Hallucinogens..Heroin..Inhalants..Miraa.Khat..Tranquilizers.)) %>% 
+  count(What.is.your.Gender., Have.you.ever.used.any.of.the.following.drugs.substances.before...Alcohol..Cannabis..Cigarette..Cocaine..Hallucinogens..Heroin..Inhalants..Miraa.Khat..Tranquilizers.) %>% pivot_wider(names_from = Have.you.ever.used.any.of.the.following.drugs.substances.before...Alcohol..Cannabis..Cigarette..Cocaine..Hallucinogens..Heroin..Inhalants..Miraa.Khat..Tranquilizers., values_from = n, values_fill = 0)
+
+print(gender_drugAbuse)
+```
+
+```{r}
+chisq.test(as.matrix((select(gender_drugAbuse, -What.is.your.Gender.))))
+```
+There is a significant association between student gender and drug/substance abuse
+
+## Among the reasons why drug/substance use/abuse was increasing, how many mentioned peer pressure? (Hint: Use Regular expressions concept to search for the word peer from the string)
+
+```{r}
+mydata %>% 
+  filter(str_detect(Give.reasons.for.your.answer, regex("peer pressure", ignore_case = TRUE))) %>% 
+  summarise(count=n())
+```
+66 students mentioned peer pressure as the reason why drug/substance use/abuse was increasing.
