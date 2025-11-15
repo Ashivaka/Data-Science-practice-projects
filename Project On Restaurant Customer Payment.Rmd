@@ -1,0 +1,207 @@
+---
+title: "Restaurant Customer Payment"
+output:
+  html_notebook:
+    theme: darkly
+---
+
+# Break down
+
+*  Getting & Loading the data
+*  EDA/exploratory analysis
+*  Data cleaning & feature engineering
+*  Modeling (predict something)
+*  Evaluating & presentation
+
+## Getting & Loading the data
+
+Install needed packages
+
+```{r}
+# install.packages("caret")
+# install.packages("GGally")
+#install.packages("ggplot2")
+
+```
+
+Load The libraries needed
+```{r}
+library(tidyverse)
+library(caret)
+library(GGally)
+```
+
+
+```{r}
+path_to_my_data<- 'C:/Users/Michael Ichenihi/Documents/Masters/Second Sem/Statistical Programming/tip.csv'
+tipdata<- read_csv(path_to_my_data)
+```
+
+We can inspect our data
+```{r}
+glimpse(tipdata)
+```
+```{r}
+summary(tipdata)
+```
+```{r}
+head(tipdata)
+```
+
+Checking the shape(no of rows and columns)
+
+```{r}
+dim(tipdata)
+```
+
+## 2. Exploratory Data Analysis(EDA)
+
+### 2.1 Basic 
+
+Checking for missing values in each column
+
+```{r}
+colSums(is.na(tipdata))
+```
+### 2.2 Visualizations
+
+#### Distribution of total bills
+```{r}
+ggplot(tipdata, aes(x= total_bill))+
+  geom_histogram(binwidth=2, fill ="skyblue",color="white")+
+  labs(title = "Distribution of Total Bills")
+```
+
+#### Tip vs Total Bill relationship
+
+```{r}
+colnames(tipdata)
+```
+
+```{r}
+ggplot(tipdata, aes(x=total_bill, y=tip, color=sex))+
+  geom_point(size=3, alpha=0.7)+
+  geom_smooth(method = "lm", se=FALSE)+
+  labs(title = "Relationship Between Tip and Total Bill")
+```
+
+#### Tip Percentage
+
+```{r}
+tipdata <- tipdata %>% 
+  mutate(tip_percentage = (tip/total_bill)*100)
+
+ggplot(tipdata,aes(x=sex, y= tip_percentage, fill = smoker))+
+  geom_boxplot()+
+  labs(title= "Tip percentage by Gender and Smoking Status")
+```
+
+#### Correlation among numeric features
+
+```{r}
+head(tipdata)
+```
+
+```{r}
+colnames(tipdata)
+```
+
+
+```{r}
+tipdata %>% 
+  select(total_bill, tip, size, tip_percentage) %>% 
+  ggpairs()
+```
+
+## 3. Data Cleaning & Feature Engineering
+
+```{r}
+# Convert categorical columns to factors
+
+tipdata<- tipdata %>% 
+  mutate(
+    sex= as.factor(sex),
+    smoker = as.factor(smoker),
+    day = as.factor(day),
+    time = as.factor(time)
+  )
+```
+
+```{r}
+head(tipdata)
+```
+
+## 4. Build a Simple Predictive Model
+
+### Objective
+
+Predict tip based on total_bill, sex, smoker, day, time, and size.
+
+### splitting into training and testing sets
+
+```{r}
+set.seed(123)
+train_index<- createDataPartition(tipdata$tip, p=0.8, list = FALSE)
+train<- tipdata[train_index, ]
+test<- tipdata[-train_index, ]
+```
+
+```{r}
+head(train)
+```
+
+```{r}
+head(test)
+```
+
+
+Checking the shape of our training data
+
+```{r}
+dim(train)
+```
+
+Checking the shape of our testing data
+
+```{r}
+dim(test)
+```
+## Step 5:Train a Linear Regression Model
+
+```{r}
+model<- lm(tip ~ total_bill + sex + smoker + day + time + size, data = train)
+summary(model)
+```
+
+## Step 6: Predict and Evaluate
+
+```{r}
+predictions <- predict(model, newdata = test)
+
+results <- data.frame(
+  Actual = test$tip,
+  Predicted = predictions
+)
+
+# Model performance
+mse<- mean((results$Actual - results$Predicted)^2)
+rsq<- cor(results$Actual, results$Predicted)^2
+
+cat("Mean Squared Error:", mse, "\n")
+cat("R-squared:", rsq, "\n")
+```
+
+```{r}
+head(results)
+```
+
+
+### Step 7: Visualize Prediction
+
+```{r}
+ggplot(results, aes(x= Actual, y = Predicted))+
+  geom_point(color= "steelblue", size = 3)+
+  geom_abline(linetype = "dashed", color = "red")+
+  labs(title = "Actual vs Predicted Tips")
+```
+
