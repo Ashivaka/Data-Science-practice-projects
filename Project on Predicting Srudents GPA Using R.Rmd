@@ -1,0 +1,207 @@
+---
+title: "Predicting Student GPA Using Random Forest"
+output:
+  html_notebook:
+    theme: darkly
+---
+
+# Steps Breakdown
+
+- Load required libraries
+- Load and inspect the dataset
+- Data cleaning
+- Exploratory Data Analysis
+- Split into Training and testing sets
+- Random Forest regression
+- Model evaluation
+
+## 1. Load required libraries
+
+```{r}
+#install.packages("corrplot")
+#install.packages("randomForest")
+```
+
+
+```{r}
+library(tidyverse)
+library(caret)
+library(corrplot)
+library(randomForest)
+library(GGally)
+```
+
+# 2. Load and Inspect the Dataset
+
+```{r}
+students<- read.csv("student_lifestyle_dataset.csv")
+
+head(students)
+```
+
+```{r}
+glimpse(students)
+```
+
+```{r}
+summary(students)
+```
+
+```{r}
+dim(students)
+```
+
+```{r}
+colnames(students)
+```
+
+## Step 3: Data Cleaning
+
+Rename columns for easier typing
+
+```{r}
+students<- students %>% 
+  rename(
+    Study_hrs = Study_Hours_Per_Day,
+    Extracur_hrs = Extracurricular_Hours_Per_Day,
+    Sleep_hrs = Sleep_Hours_Per_Day,
+    Social_hrs = Social_Hours_Per_Day,
+    Physical_hrs = Physical_Activity_Hours_Per_Day
+  )
+
+```
+
+```{r}
+colnames(students)
+```
+
+
+Remove Student_ID(not useful in our analysis)
+
+```{r}
+students <- students %>% 
+  select(-Student_ID)
+head(students)
+```
+
+Convert stress_level to factor
+
+```{r}
+students$Stress_Level <- as.factor(students$Stress_Level)
+```
+
+Check for missing Values
+
+```{r}
+colSums(is.na(students))
+```
+
+## Step 4: Exploratory Data Analysis(EDA)
+
+### Correlation Matrix
+
+```{r}
+cor_matrix <- cor(students %>% select(where(is.numeric)))
+corrplot(cor_matrix, method="color", addCoef.col = "black",tl.cex=0.8)
+```
+
+We can see that study hours is positively correlated to GPA this means when one increases his study hours the overall GPA increases
+
+### Relationships with GPA
+
+```{r}
+colnames((students))
+```
+
+```{r}
+unique(students$Stress_Level)
+```
+
+
+```{r}
+ggpairs(students, columns = c("Study_hrs", "Sleep_hrs", "Social_hrs", "Physical_hrs", "GPA"),
+        aes(color= Stress_Level))
+```
+
+Students with high stress levels have a higher GPA
+
+## Step 5: Split into Training and testing Sets
+
+```{r}
+set.seed(123)
+trainIndex<- createDataPartition(students$GPA, p = 0.8, list = FALSE)
+train <- students[trainIndex, ]
+test <- students[-trainIndex, ]
+```
+
+```{r}
+head(train)
+```
+
+```{r}
+head(test)
+```
+
+## Step 6: Train Model to Predict GPA
+
+We try using both Regression and Random Forest then compare performance
+
+### 1: Linear regression
+
+```{r}
+colnames(students)
+```
+
+
+```{r}
+lm_model <- lm(GPA ~ Study_hrs + Sleep_hrs + Social_hrs + Extracur_hrs + Physical_hrs + Stress_Level, data = train)
+summary(lm_model)
+```
+
+The P value shows that the model is significant
+
+### 2: Random Forest Regression
+
+```{r}
+rf_model <- randomForest(GPA ~ Study_hrs + Sleep_hrs + Social_hrs + Extracur_hrs + Physical_hrs + Stress_Level, data = train, ntree = 200, importance = TRUE)
+
+rf_model
+```
+
+## Step 7: Model Evaluation
+
+```{r}
+# Predictions
+pred_lm <- predict(lm_model, newdata = test)
+pred_rf <- predict(rf_model, newdata = test)
+
+```
+
+```{r}
+# Calculate performance metrics
+lm_rmse <- sqrt(mean((pred_lm - test$GPA)^2))
+rf_rmse <- sqrt(mean((pred_rf - test$GPA)^2))
+
+cat("Linear Model RMSE:", round(lm_rmse, 3), "\n")
+cat("Random Forest RMSE:", round(rf_rmse, 3), "\n")
+```
+
+Linear regression Predicted GPA better with a lower GPA.
+
+## Step 8: Visualization and Predictions
+
+```{r}
+results <- data.frame(
+  Actual = test$GPA,
+  Predicted_RF = pred_rf,
+  Predicted_LM = pred_lm
+)
+
+ggplot(results, aes(x = Actual, y = Predicted_RF)) +
+  geom_point(color = "dodgerblue", size = 3) +
+  geom_abline(slope = 1, intercept = 0, color = "red") +
+  labs(title = "Random Forest Predictions vs Actual GPA",
+       x = "Actual GPA", y = "Predicted GPA")
+
+```
+
